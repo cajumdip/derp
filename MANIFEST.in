@@ -1,0 +1,7 @@
+include README.md
+include QUICKSTART.md
+include CONTRIBUTING.md
+include LICENSE
+include requirements.txt
+include config.example.yaml
+recursive-include cojumpendium_scraper *.py
