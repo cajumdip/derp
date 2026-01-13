@@ -16,32 +16,56 @@ Cojum Dip is an experimental band founded by Bora Karaca around 2004 at the Univ
 
 ## Why Wayback Machine Only?
 
-After analysis, we determined that the Wayback Machine is the single most comprehensive source for historical content. Rather than spreading effort across multiple platforms (MySpace, Facebook, Twitter, etc.), this scraper focuses all resources on thoroughly searching the Internet Archive using:
+After analysis, we determined that the Wayback Machine is the single most comprehensive source for historical content. The Cojumpendium research group has already archived everything available on Archive.org itself, so this scraper focuses exclusively on **Wayback Machine snapshots** of archived web pages from 2004-2011.
 
-1. **CDX Server API** - Fast URL-based searches with wildcard matching
+Rather than searching Archive.org uploads (which the group already has), this tool searches for:
+
+1. **CDX Server API** - Fast URL-based searches with wildcard matching + platform-specific URL patterns
 2. **Calendar Captures API** - Granular day-by-day snapshot discovery
 3. **Full-text Search** - HTML parsing of Wayback search results
-4. **Archive.org Search** - Discovery of uploaded audio/video/documents
+
+**Date Filter**: All searches are limited to **2004-2011 ONLY** - nothing after 2011 is included.
 
 ## Features
 
 ### Core Capabilities
-- **Multiple Wayback Search Methods** - Comprehensive coverage using 4 different APIs
+- **Multiple Wayback Search Methods** - Comprehensive coverage using 3 different APIs (CDX, Calendar, Full-text)
+- **Date Filtering** - All searches limited to 2004-2011 snapshots ONLY
+- **URL Pattern Search** - Search specific platforms (MySpace, Soundcloud, YouTube, etc.)
 - **Aggressive Rate Limiting** - Built-in protection against blocks with exponential backoff
 - **Smart Session Management** - Resume interrupted searches from where you left off
 - **Content Analysis** - Automatic phrase detection in archived pages
-- **Media Extraction** - Automatic detection of images, videos, and audio
+- **Enhanced Media Extraction** - Detection of images, videos, audio, Flash (SWF), YouTube embeds, MySpace music, Soundcloud
 - **Request Jittering** - Random delays to avoid detection
 - **User-Agent Rotation** - Realistic browser identification
 - **SQLite Database** - Track all discovered URLs and their status
 - **Export Options** - JSON, CSV, and HTML report generation
 
 ### Search Targets
-The scraper searches for these REQUIRED phrases:
+The scraper searches for these phrases (2004-2011 snapshots only):
+
+**Primary Targets:**
 - "Cojum Dip"
 - "cojumdip"
 - "bkaraca"
 - "Bora Karaca"
+
+**High Priority:**
+- "Turk Off" (original 2008 EP)
+- "2010 Remix" (lost Soundcloud playlist)
+
+**Band Members:**
+- "Bodur the Clumsy"
+- "Udabn the Feared"
+- "Captain No the Love Machine"
+- "Mumutits the Sour"
+- "Oktabis the Keeper"
+
+**Related:**
+- "Tally Hall Bora"
+- "Anthropomorphic Bible Assault"
+- "Greatest Demo CD in the Universe"
+- Venues: "Blind Pig", "Duderstadt Center"
 
 ## Installation
 
@@ -84,9 +108,20 @@ search:
     - "cojumdip"
     - "bkaraca"
     - "Bora Karaca"
+    - "Turk Off"
+    - "2010 Remix"
+    # ... see config.yaml for all 17 phrases
+  
+  # URL patterns for CDX search
+  url_patterns:
+    - "myspace.com/cojumdip"
+    - "soundcloud.com/cojumdip"
+    - "youtube.com/*cojum*"
+    # ... see config.yaml for all 16 patterns
+  
   date_range:
-    start: "2004"
-    end: "2012"
+    start: 2004
+    end: 2011  # NOTHING AFTER 2011
 
 # Rate limiting (CRITICAL for avoiding blocks)
 rate_limiting:
@@ -111,13 +146,14 @@ See `config.example.yaml` for all available options.
 python -m cojumpendium_scraper init
 ```
 
-2. **Search** for archived content
+2. **Search** for archived content (2004-2011 snapshots only)
 ```bash
 # Search using all methods for all phrases
 python -m cojumpendium_scraper search
 
 # Search specific phrase
-python -m cojumpendium_scraper search --phrase "Cojum Dip"
+python -m cojumpendium_scraper search --phrase "Turk Off"
+python -m cojumpendium_scraper search --phrase "2010 Remix"
 
 # Use specific search method
 python -m cojumpendium_scraper search --method cdx
@@ -155,14 +191,15 @@ python -m cojumpendium_scraper init
 ```
 
 #### `search`
-Search Wayback Machine for content
+Search Wayback Machine for content (2004-2011 snapshots only)
 ```bash
 python -m cojumpendium_scraper search [OPTIONS]
 
 Options:
   --phrase, -p TEXT      Specific phrase to search
-  --method, -m [cdx|calendar|fulltext|archive_search|all]
+  --method, -m [cdx|calendar|fulltext|all]
                         Search method (default: all)
+                        Note: archive_search is disabled by default
   --resume              Resume from previous progress
 ```
 

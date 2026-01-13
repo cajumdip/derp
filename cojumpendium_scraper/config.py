@@ -34,8 +34,8 @@ class Config:
                 'Bora Karaca', 'Turk Off', '2010 Remix'
             ],
             'date_range': {
-                'start': '2004-01-01',
-                'end': '2011-12-31'
+                'start': 2004,
+                'end': 2011
             }
         },
         'media': {

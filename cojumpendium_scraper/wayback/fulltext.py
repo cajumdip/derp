@@ -129,6 +129,11 @@ class FullTextScraper:
                     timestamp = match.group(1)
                     original_url = match.group(2)
                     
+                    # Filter out any results after 2011-12-31
+                    if timestamp and int(timestamp[:8]) > 20111231:
+                        logger.debug(f"Skipping URL with timestamp {timestamp} (after 2011)")
+                        continue
+                    
                     # Build full archive URL
                     if href.startswith('http'):
                         archive_url = href
