@@ -64,15 +64,15 @@ class HTTPClient:
         if self.session:
             await self.session.close()
     
-    async def get(self, url: str, **kwargs) -> Optional[aiohttp.ClientResponse]:
-        """Perform GET request with retries.
+    async def get_text(self, url: str, **kwargs) -> Optional[str]:
+        """Get text content from URL.
         
         Args:
             url: URL to fetch
-            **kwargs: Additional arguments for aiohttp
+            **kwargs: Additional arguments
             
         Returns:
-            Response object or None on failure
+            Text content or None
         """
         if not self.session:
             raise RuntimeError("HTTPClient must be used as async context manager")
@@ -84,12 +84,19 @@ class HTTPClient:
                 
                 async with self.session.get(url, **kwargs) as response:
                     response.raise_for_status()
-                    return response
+                    return await response.text()
                     
+            except aiohttp.ClientResponseError as e:
+                logger.warning(f"Request failed (attempt {attempt + 1}/{self.max_retries}): {e}")
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    logger.error(f"Failed to fetch {url} after {self.max_retries} attempts")
+                    return None
             except aiohttp.ClientError as e:
                 logger.warning(f"Request failed (attempt {attempt + 1}/{self.max_retries}): {e}")
                 if attempt < self.max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    await asyncio.sleep(2 ** attempt)
                 else:
                     logger.error(f"Failed to fetch {url} after {self.max_retries} attempts")
                     return None
@@ -97,21 +104,6 @@ class HTTPClient:
                 logger.error(f"Unexpected error fetching {url}: {e}")
                 return None
         
-        return None
-    
-    async def get_text(self, url: str, **kwargs) -> Optional[str]:
-        """Get text content from URL.
-        
-        Args:
-            url: URL to fetch
-            **kwargs: Additional arguments
-            
-        Returns:
-            Text content or None
-        """
-        response = await self.get(url, **kwargs)
-        if response:
-            return await response.text()
         return None
     
     async def get_json(self, url: str, **kwargs) -> Optional[Dict[str, Any]]:
@@ -124,12 +116,36 @@ class HTTPClient:
         Returns:
             JSON data or None
         """
-        response = await self.get(url, **kwargs)
-        if response:
+        if not self.session:
+            raise RuntimeError("HTTPClient must be used as async context manager")
+        
+        for attempt in range(self.max_retries):
             try:
-                return await response.json()
+                if self.rate_limiter:
+                    await self.rate_limiter.wait()
+                
+                async with self.session.get(url, **kwargs) as response:
+                    response.raise_for_status()
+                    return await response.json()
+                    
+            except aiohttp.ClientResponseError as e:
+                logger.warning(f"Request failed (attempt {attempt + 1}/{self.max_retries}): {e}")
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    logger.error(f"Failed to fetch {url} after {self.max_retries} attempts")
+                    return None
+            except aiohttp.ClientError as e:
+                logger.warning(f"Request failed (attempt {attempt + 1}/{self.max_retries}): {e}")
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    logger.error(f"Failed to fetch {url} after {self.max_retries} attempts")
+                    return None
             except Exception as e:
-                logger.error(f"Failed to parse JSON from {url}: {e}")
+                logger.error(f"Unexpected error fetching {url}: {e}")
+                return None
+        
         return None
     
     async def download_file(self, url: str, output_path: str) -> bool:
@@ -142,13 +158,37 @@ class HTTPClient:
         Returns:
             True if successful
         """
-        response = await self.get(url)
-        if response:
+        if not self.session:
+            raise RuntimeError("HTTPClient must be used as async context manager")
+        
+        for attempt in range(self.max_retries):
             try:
-                with open(output_path, 'wb') as f:
-                    async for chunk in response.content.iter_chunked(8192):
-                        f.write(chunk)
-                return True
+                if self.rate_limiter:
+                    await self.rate_limiter.wait()
+                
+                async with self.session.get(url) as response:
+                    response.raise_for_status()
+                    with open(output_path, 'wb') as f:
+                        async for chunk in response.content.iter_chunked(8192):
+                            f.write(chunk)
+                    return True
+                    
+            except aiohttp.ClientResponseError as e:
+                logger.warning(f"Download failed (attempt {attempt + 1}/{self.max_retries}): {e}")
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    logger.error(f"Failed to download {url} after {self.max_retries} attempts")
+                    return False
+            except aiohttp.ClientError as e:
+                logger.warning(f"Download failed (attempt {attempt + 1}/{self.max_retries}): {e}")
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    logger.error(f"Failed to download {url} after {self.max_retries} attempts")
+                    return False
             except Exception as e:
-                logger.error(f"Failed to download {url}: {e}")
+                logger.error(f"Unexpected error downloading {url}: {e}")
+                return False
+        
         return False
