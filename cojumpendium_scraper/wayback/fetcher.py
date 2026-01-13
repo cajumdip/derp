@@ -115,7 +115,7 @@ class PageFetcher:
             
             # Save HTML to file
             html_path = self.pages_dir / f"{content_hash}.html"
-            html_path.write_text(html, encoding='utf-8', errors='ignore')
+            html_path.write_text(html, encoding='utf-8', errors='replace')
             
             # Update status to fetched
             self.db.update_discovered_url_status(url_id, 'fetched', content_hash)

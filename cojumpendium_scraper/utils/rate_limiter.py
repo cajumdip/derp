@@ -53,6 +53,7 @@ class AdaptiveRateLimiter:
         self.last_request_time = 0
         self.total_requests = 0
         self.total_errors = 0
+        self.init_time = time.time()  # Track actual initialization time
         
         logger.info(
             f"Rate limiter initialized: {self.min_delay}-{self.max_delay}s delay, "
@@ -173,7 +174,7 @@ class AdaptiveRateLimiter:
             'requests_this_hour': self.requests_this_hour,
             'current_backoff': self.current_backoff,
             'error_rate': self.total_errors / max(1, self.total_requests),
-            'uptime_seconds': time.time() - self.hour_start if self.total_requests > 0 else 0
+            'uptime_seconds': time.time() - self.init_time
         }
     
     def reset(self) -> None:

@@ -45,16 +45,56 @@ class AsyncHTTPClient:
             await self.session.close()
     
     async def get_text(self, url: str) -> str:
+        """Get text content from URL with error handling.
+        
+        Args:
+            url: URL to fetch
+            
+        Returns:
+            Text content
+            
+        Raises:
+            aiohttp.ClientError: On network/HTTP errors with meaningful message
+        """
         headers = {'User-Agent': self.user_agent_rotator.get_random()}
-        async with self.session.get(url, headers=headers) as response:
-            response.raise_for_status()
-            return await response.text()
+        try:
+            async with self.session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                return await response.text()
+        except aiohttp.ClientTimeout as e:
+            raise aiohttp.ClientError(f"Request timed out for {url}: {e}")
+        except aiohttp.ClientResponseError as e:
+            raise aiohttp.ClientError(f"HTTP {e.status} error for {url}: {e.message}")
+        except aiohttp.ClientConnectionError as e:
+            raise aiohttp.ClientError(f"Connection failed for {url}: {e}")
+        except Exception as e:
+            raise aiohttp.ClientError(f"Unexpected error fetching {url}: {e}")
     
     async def get_json(self, url: str):
+        """Get JSON content from URL with error handling.
+        
+        Args:
+            url: URL to fetch
+            
+        Returns:
+            JSON data
+            
+        Raises:
+            aiohttp.ClientError: On network/HTTP/parsing errors with meaningful message
+        """
         headers = {'User-Agent': self.user_agent_rotator.get_random()}
-        async with self.session.get(url, headers=headers) as response:
-            response.raise_for_status()
-            return await response.json()
+        try:
+            async with self.session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                return await response.json()
+        except aiohttp.ClientTimeout as e:
+            raise aiohttp.ClientError(f"Request timed out for {url}: {e}")
+        except aiohttp.ClientResponseError as e:
+            raise aiohttp.ClientError(f"HTTP {e.status} error for {url}: {e.message}")
+        except aiohttp.ClientConnectionError as e:
+            raise aiohttp.ClientError(f"Connection failed for {url}: {e}")
+        except Exception as e:
+            raise aiohttp.ClientError(f"Unexpected error fetching {url}: {e}")
 
 
 @click.group()
