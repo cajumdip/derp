@@ -11,8 +11,11 @@ Successfully reworked the Cojumpendium scraper to be **100% focused on Wayback M
 
 ## Statistics
 - **Total Python Modules**: 25+ (restructured)
-- **Wayback Search Methods**: 4 comprehensive approaches
-- **Media Extractors**: 4 (base + images, video, audio)
+- **Wayback Search Methods**: 3 (CDX, Calendar, Full-text) - Archive.org search disabled by default
+- **Date Range**: 2004-2011 ONLY (all results after 2011 filtered out)
+- **Search Phrases**: 17 configured phrases including high-priority targets
+- **URL Patterns**: 16 platform-specific patterns for CDX search
+- **Media Extractors**: 4 (base + images, video, audio) with enhanced Flash/YouTube/MySpace/Soundcloud support
 - **Content Analyzers**: 1 (phrase detection)
 - **Exporters**: 3 formats (JSON, CSV, HTML)
 - **CLI Commands**: 7 (init, search, fetch, download, stats, rate-status, export)
@@ -62,42 +65,56 @@ All scrapers integrate with the rate limiter and database.
 **Implemented Methods:**
 1. **CDX Server API** (`wayback/cdx.py`)
    - Fast URL-based searches with wildcard matching
+   - Platform-specific URL pattern search (MySpace, Soundcloud, YouTube, etc.)
    - Pattern variations (no spaces, dashes, underscores)
-   - Date range filtering (2004-2012)
+   - Date range filtering (2004-2011 with from=20040101&to=20111231)
+   - Timestamp filtering to exclude results > 2011-12-31
    - Duplicate content collapsing
    - Success rate tracking
 
 2. **Calendar Captures API** (`wayback/calendar.py`)
    - Undocumented API for granular capture discovery
    - Year → Day → Time drilling
+   - Fixed year parsing to handle both string and integer dates
+   - Date range filtering (2004-2011)
    - Known site checking
    - Day-by-day snapshot enumeration
+   - Timestamp filtering to exclude results > 2011-12-31
    - Comprehensive time-based coverage
 
 3. **Full-Text Search** (`wayback/fulltext.py`)
    - HTML parsing of Wayback search results
    - Pagination support (up to 50 pages per phrase)
    - Archive URL extraction
+   - Timestamp filtering to exclude results > 2011-12-31
    - Link text preservation
    - Resume capability
 
 4. **Archive.org General Search** (`wayback/archive_search.py`)
+   - **DISABLED BY DEFAULT** (group already has these files)
+   - Can be enabled in config if needed
    - Search uploaded audio/video/documents
    - Advanced search API integration
    - Field-based searching (title, description, creator)
-   - Pagination with result counting
-   - Media type tracking
 
 ### 3. Content Analysis & Fetching ✅
 
 1. **Content Analyzer** (`extractors/content.py`)
    - Phrase detection in archived HTML
-   - Search for all configured target phrases
+   - Search for all 17 configured target phrases
    - Case-insensitive matching
    - Phrase frequency counting
-   - Media URL extraction from HTML
-   - Image, video, audio, and embed detection
+   - Enhanced media URL extraction from HTML:
+     - Images (img tags)
+     - Videos (video tags, source tags)
+     - Audio (audio tags)
+     - Flash/SWF files (embed tags, object tags)
+     - YouTube embeds (iframe extraction with video ID)
+     - MySpace music player links
+     - Soundcloud embeds
+     - Direct file links (.mp3, .mp4, .flv, .jpg, .png, etc.)
    - Valid media URL filtering
+   - Skip tracking pixels and data URLs
 
 2. **Page Fetcher** (`wayback/fetcher.py`)
    - Async page downloading
@@ -156,10 +173,11 @@ Built with Click and Rich for interactive experience:
 
 **Commands:**
 - `init` - Initialize configuration and database
-- `search` - Search Wayback Machine
-  - `--phrase` - Search specific phrase
-  - `--method` - Choose search method (cdx/calendar/fulltext/archive_search/all)
+- `search` - Search Wayback Machine (2004-2011 snapshots only)
+  - `--phrase` - Search specific phrase (e.g., "Turk Off", "2010 Remix")
+  - `--method` - Choose search method (cdx/calendar/fulltext/all)
   - `--resume` - Resume interrupted searches
+  - Note: archive_search disabled by default (can be enabled in config)
 - `fetch` - Fetch and analyze discovered URLs
   - `--limit` - Maximum URLs to process
 - `download` - Download media (placeholder for future)
