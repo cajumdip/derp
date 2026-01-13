@@ -27,7 +27,60 @@ class Database:
         
         cursor = self.conn.cursor()
         
-        # URLs table - tracks all discovered URLs
+        # Discovered URLs from Wayback search
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS discovered_urls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_url TEXT,
+                archive_url TEXT UNIQUE NOT NULL,
+                archive_timestamp TEXT,
+                search_phrase TEXT,
+                discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'pending',
+                content_hash TEXT,
+                metadata TEXT
+            )
+        ''')
+        
+        # Media found on pages
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS media (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url_id INTEGER,
+                media_url TEXT NOT NULL,
+                media_type TEXT,
+                local_path TEXT,
+                file_hash TEXT,
+                downloaded_at TIMESTAMP,
+                FOREIGN KEY (url_id) REFERENCES discovered_urls(id)
+            )
+        ''')
+        
+        # Search progress tracking
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS search_progress (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                search_phrase TEXT NOT NULL,
+                search_method TEXT NOT NULL,
+                last_offset INTEGER DEFAULT 0,
+                last_timestamp TEXT,
+                completed BOOLEAN DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Request log for rate limiting
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS request_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status_code INTEGER,
+                success BOOLEAN
+            )
+        ''')
+        
+        # Legacy tables for compatibility
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS urls (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +95,6 @@ class Database:
             )
         ''')
         
-        # Media files table - tracks downloaded media
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS media_files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +111,6 @@ class Database:
             )
         ''')
         
-        # Search results table - tracks search queries
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS search_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,6 +127,22 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_urls_status ON urls(status)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_hash ON media_files(file_hash)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_type ON media_files(file_type)')
+        
+        # New indexes for discovered_urls
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_discovered_urls_status ON discovered_urls(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_discovered_urls_phrase ON discovered_urls(search_phrase)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_discovered_urls_timestamp ON discovered_urls(archive_timestamp)')
+        
+        # Indexes for media
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_url_id ON media(url_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_type ON media(media_type)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_hash ON media(file_hash)')
+        
+        # Indexes for search_progress
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_search_progress_phrase_method ON search_progress(search_phrase, search_method)')
+        
+        # Indexes for request_log
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_request_log_timestamp ON request_log(timestamp)')
         
         self.conn.commit()
     
@@ -213,6 +280,242 @@ class Database:
             WHERE id = ?
         ''', (notes, media_id))
         self.conn.commit()
+    
+    # New methods for Wayback-focused scraper
+    
+    def add_discovered_url(self, original_url: str, archive_url: str, 
+                          archive_timestamp: str, search_phrase: str,
+                          content_hash: Optional[str] = None,
+                          metadata: Optional[Dict] = None) -> int:
+        """Add a discovered URL from Wayback search.
+        
+        Args:
+            original_url: Original URL before archiving
+            archive_url: Wayback Machine URL
+            archive_timestamp: Archive timestamp
+            search_phrase: Search phrase that found this URL
+            content_hash: Hash of content
+            metadata: Additional metadata
+            
+        Returns:
+            URL ID, or -1 if duplicate
+        """
+        cursor = self.conn.cursor()
+        metadata_json = json.dumps(metadata) if metadata else None
+        
+        try:
+            cursor.execute('''
+                INSERT INTO discovered_urls 
+                (original_url, archive_url, archive_timestamp, search_phrase, content_hash, metadata)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (original_url, archive_url, archive_timestamp, search_phrase, content_hash, metadata_json))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            # URL already exists
+            cursor.execute('SELECT id FROM discovered_urls WHERE archive_url = ?', (archive_url,))
+            row = cursor.fetchone()
+            return row['id'] if row else -1
+    
+    def add_media(self, url_id: int, media_url: str, media_type: str,
+                  local_path: Optional[str] = None, file_hash: Optional[str] = None) -> int:
+        """Add media found on a page.
+        
+        Args:
+            url_id: Reference to discovered_urls
+            media_url: URL of media
+            media_type: Type (image/video/audio)
+            local_path: Local download path
+            file_hash: Hash of downloaded file
+            
+        Returns:
+            Media ID
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO media (url_id, media_url, media_type, local_path, file_hash, downloaded_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (url_id, media_url, media_type, local_path, file_hash, 
+              datetime.now().isoformat() if local_path else None))
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def update_discovered_url_status(self, url_id: int, status: str, 
+                                     content_hash: Optional[str] = None) -> None:
+        """Update status of discovered URL.
+        
+        Args:
+            url_id: URL ID
+            status: New status (pending/fetched/analyzed/error)
+            content_hash: Optional content hash
+        """
+        cursor = self.conn.cursor()
+        if content_hash:
+            cursor.execute('''
+                UPDATE discovered_urls 
+                SET status = ?, content_hash = ?
+                WHERE id = ?
+            ''', (status, content_hash, url_id))
+        else:
+            cursor.execute('''
+                UPDATE discovered_urls 
+                SET status = ?
+                WHERE id = ?
+            ''', (status, url_id))
+        self.conn.commit()
+    
+    def get_search_progress(self, search_phrase: str, search_method: str) -> Optional[Dict[str, Any]]:
+        """Get progress for a search.
+        
+        Args:
+            search_phrase: Search phrase
+            search_method: Search method
+            
+        Returns:
+            Progress record or None
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM search_progress 
+            WHERE search_phrase = ? AND search_method = ?
+        ''', (search_phrase, search_method))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+    
+    def update_search_progress(self, search_phrase: str, search_method: str,
+                              last_offset: int = 0, last_timestamp: Optional[str] = None,
+                              completed: bool = False) -> None:
+        """Update or create search progress.
+        
+        Args:
+            search_phrase: Search phrase
+            search_method: Search method
+            last_offset: Last processed offset
+            last_timestamp: Last processed timestamp
+            completed: Whether search is completed
+        """
+        cursor = self.conn.cursor()
+        
+        # Try to update existing record
+        cursor.execute('''
+            UPDATE search_progress 
+            SET last_offset = ?, last_timestamp = ?, completed = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE search_phrase = ? AND search_method = ?
+        ''', (last_offset, last_timestamp, 1 if completed else 0, search_phrase, search_method))
+        
+        # If no rows updated, insert new record
+        if cursor.rowcount == 0:
+            cursor.execute('''
+                INSERT INTO search_progress 
+                (search_phrase, search_method, last_offset, last_timestamp, completed)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (search_phrase, search_method, last_offset, last_timestamp, 1 if completed else 0))
+        
+        self.conn.commit()
+    
+    def log_request(self, url: str, status_code: int, success: bool) -> None:
+        """Log an HTTP request for rate limiting analysis.
+        
+        Args:
+            url: Request URL
+            status_code: HTTP status code
+            success: Whether request succeeded
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO request_log (url, status_code, success)
+            VALUES (?, ?, ?)
+        ''', (url, status_code, 1 if success else 0))
+        self.conn.commit()
+    
+    def get_recent_requests(self, minutes: int = 60) -> List[Dict[str, Any]]:
+        """Get recent requests for rate limiting.
+        
+        Args:
+            minutes: Time window in minutes
+            
+        Returns:
+            List of recent requests
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM request_log 
+            WHERE timestamp >= datetime('now', '-' || ? || ' minutes')
+            ORDER BY timestamp DESC
+        ''', (minutes,))
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def get_pending_discovered_urls(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get pending discovered URLs to fetch.
+        
+        Args:
+            limit: Maximum number to return
+            
+        Returns:
+            List of pending URLs
+        """
+        cursor = self.conn.cursor()
+        query = 'SELECT * FROM discovered_urls WHERE status = "pending"'
+        if limit:
+            query += f' LIMIT {limit}'
+        cursor.execute(query)
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def get_discovered_urls_for_analysis(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get fetched URLs that need content analysis.
+        
+        Args:
+            limit: Maximum number to return
+            
+        Returns:
+            List of URLs to analyze
+        """
+        cursor = self.conn.cursor()
+        query = 'SELECT * FROM discovered_urls WHERE status = "fetched"'
+        if limit:
+            query += f' LIMIT {limit}'
+        cursor.execute(query)
+        return [dict(row) for row in cursor.fetchall()]
+    
+    def get_wayback_statistics(self) -> Dict[str, Any]:
+        """Get Wayback scraper statistics.
+        
+        Returns:
+            Dictionary with statistics
+        """
+        cursor = self.conn.cursor()
+        stats = {}
+        
+        # Discovered URLs by status
+        cursor.execute('SELECT status, COUNT(*) as count FROM discovered_urls GROUP BY status')
+        stats['discovered_urls_by_status'] = {row['status']: row['count'] for row in cursor.fetchall()}
+        
+        # Discovered URLs by phrase
+        cursor.execute('SELECT search_phrase, COUNT(*) as count FROM discovered_urls GROUP BY search_phrase')
+        stats['discovered_urls_by_phrase'] = {row['search_phrase']: row['count'] for row in cursor.fetchall()}
+        
+        # Media by type
+        cursor.execute('SELECT media_type, COUNT(*) as count FROM media GROUP BY media_type')
+        stats['media_by_type'] = {row['media_type']: row['count'] for row in cursor.fetchall()}
+        
+        # Search progress
+        cursor.execute('SELECT * FROM search_progress ORDER BY updated_at DESC')
+        stats['search_progress'] = [dict(row) for row in cursor.fetchall()]
+        
+        # Request statistics (last hour)
+        cursor.execute('''
+            SELECT 
+                COUNT(*) as total_requests,
+                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_requests,
+                SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_requests
+            FROM request_log 
+            WHERE timestamp >= datetime('now', '-1 hour')
+        ''')
+        row = cursor.fetchone()
+        if row:
+            stats['requests_last_hour'] = dict(row)
+        
+        return stats
     
     def close(self) -> None:
         """Close database connection."""
