@@ -187,14 +187,14 @@ async def _run_search(config: Config, phrases: list, method: str, resume: bool):
 @cli.command()
 @click.option('--limit', '-l', type=int, default=100, help='Maximum URLs to fetch')
 @click.pass_context
-def fetch(ctx):
+def fetch(ctx, limit):
     """Fetch and analyze discovered pages."""
     config = ctx.obj['config']
     
-    console.print(f"[bold green]Fetching pending URLs...[/bold green]")
+    console.print(f"[bold green]Fetching up to {limit} pending URLs...[/bold green]")
     
     # Run async fetch
-    asyncio.run(_run_fetch(config, ctx.parent.params.get('limit', 100)))
+    asyncio.run(_run_fetch(config, limit))
 
 
 async def _run_fetch(config: Config, limit: int):
