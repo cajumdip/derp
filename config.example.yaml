@@ -1,0 +1,156 @@
+# Cojumpendium Scraper Configuration
+# Copy this file to config.yaml and customize
+
+# General settings
+general:
+  # Directory to store downloaded media
+  download_dir: "./downloads"
+  
+  # Database file location
+  database: "./cojumpendium.db"
+  
+  # Logging level (DEBUG, INFO, WARNING, ERROR)
+  log_level: "INFO"
+  
+  # Log file location
+  log_file: "./scraper.log"
+
+# HTTP settings
+http:
+  # Maximum concurrent requests
+  max_concurrent: 10
+  
+  # Delay between requests (seconds)
+  request_delay: 1.0
+  
+  # Request timeout (seconds)
+  timeout: 30
+  
+  # Maximum retries for failed requests
+  max_retries: 3
+  
+  # User agent string
+  user_agent: "Cojumpendium-Scraper/1.0 (Lost Media Archival Project; +https://github.com/cajumdip/derp)"
+
+# Archive.org / Wayback Machine settings
+wayback:
+  # Rate limit: requests per minute
+  rate_limit: 30
+  
+  # Enable CDX API usage
+  use_cdx: true
+  
+  # CDX server URL
+  cdx_url: "https://web.archive.org/cdx/search/cdx"
+
+# Search terms and targets
+search:
+  # Primary search terms
+  terms:
+    - "Cojum Dip"
+    - "cojumdip"
+    - "cojum-dip"
+    - "Bora Karaca"
+    - "Turk Off"
+    - "2010 Remix"
+    - "Bodur the Clumsy"
+    - "Udabn the Feared"
+    - "Captain No the Love Machine"
+    - "Mumutits the Sour"
+    - "Oktabis the Keeper"
+    - "Anthropomorphic Bible Assault"
+    - "Greatest Demo CD in the Universe"
+  
+  # Venue combinations
+  venues:
+    - "Blind Pig"
+    - "Duderstadt Center"
+  
+  # Related searches
+  related:
+    - "Tally Hall Bora"
+    - "Ann Arbor experimental metal"
+  
+  # Date range for searches
+  date_range:
+    start: "2004-01-01"
+    end: "2011-12-31"
+
+# Platform-specific settings
+platforms:
+  myspace:
+    enabled: true
+    urls:
+      - "myspace.com/cojumdip"
+  
+  soundcloud:
+    enabled: true
+    urls:
+      - "soundcloud.com/cojumdip"
+  
+  facebook:
+    enabled: true
+    urls:
+      - "facebook.com/cojumdip"
+  
+  twitter:
+    enabled: true
+    search_handles:
+      - "cojumdip"
+      - "borakaraca"
+  
+  youtube:
+    enabled: true
+    channels: []
+  
+  lastfm:
+    enabled: true
+    artist: "Cojum Dip"
+  
+  flickr:
+    enabled: true
+    tags:
+      - "cojumdip"
+      - "cojum dip"
+  
+  purevolume:
+    enabled: true
+    urls:
+      - "purevolume.com/cojumdip"
+  
+  forums:
+    enabled: true
+    # Add forum URLs to search
+    urls: []
+
+# Media extraction settings
+media:
+  # File types to download
+  images:
+    enabled: true
+    extensions: [".jpg", ".jpeg", ".png", ".gif", ".bmp"]
+    max_size_mb: 50
+  
+  videos:
+    enabled: true
+    extensions: [".mp4", ".avi", ".flv", ".wmv", ".mov"]
+    max_size_mb: 500
+  
+  audio:
+    enabled: true
+    extensions: [".mp3", ".wav", ".ogg", ".flac", ".m4a"]
+    max_size_mb: 100
+
+# Export settings
+export:
+  # Generate JSON export
+  json: true
+  
+  # Generate CSV export
+  csv: true
+  
+  # Generate HTML report
+  html: true
+  
+  # Output directory for exports
+  output_dir: "./exports"
