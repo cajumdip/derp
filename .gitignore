@@ -40,6 +40,7 @@ venv.bak/
 # Project specific
 config.yaml
 downloads/
+exports/
 *.db
 *.sqlite
 *.sqlite3
