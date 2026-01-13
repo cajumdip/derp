@@ -12,6 +12,14 @@ logger = logging.getLogger(__name__)
 class ContentAnalyzer:
     """Analyzes HTML content for target phrases."""
     
+    # Media file extensions for validation
+    MEDIA_EXTENSIONS = [
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
+        '.mp4', '.avi', '.flv', '.wmv', '.mov', '.webm',
+        '.mp3', '.wav', '.ogg', '.flac', '.m4a', '.wma',
+        '.swf'  # Flash files
+    ]
+    
     def __init__(self, config):
         """Initialize content analyzer.
         
@@ -155,9 +163,10 @@ class ContentAnalyzer:
                         'url': src
                     })
         
-        # Extract YouTube embeds
+        # Extract YouTube and Soundcloud embeds from iframes
         for iframe in soup.find_all('iframe', src=True):
             src = iframe['src']
+            # YouTube embeds
             youtube_match = re.search(r'youtube\.com/embed/([a-zA-Z0-9_-]+)', src)
             if youtube_match:
                 video_id = youtube_match.group(1)
@@ -166,29 +175,24 @@ class ContentAnalyzer:
                     'url': f'https://www.youtube.com/watch?v={video_id}',
                     'embed_url': src
                 })
-        
-        # Extract MySpace music player links
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            if 'myspace.com/music/player' in href.lower():
-                media_urls.append({
-                    'type': 'myspace_music',
-                    'url': href
-                })
-        
-        # Extract Soundcloud embeds
-        for iframe in soup.find_all('iframe', src=True):
-            src = iframe['src']
-            if 'soundcloud.com' in src.lower():
+            # Soundcloud embeds
+            elif 'soundcloud.com' in src.lower():
                 media_urls.append({
                     'type': 'soundcloud',
                     'url': src
                 })
         
-        # Extract direct file links from all links
+        # Extract direct file links and special music player links
         for link in soup.find_all('a', href=True):
             href = link['href']
-            if self._is_direct_media_link(href):
+            # MySpace music player links
+            if 'myspace.com/music/player' in href.lower():
+                media_urls.append({
+                    'type': 'myspace_music',
+                    'url': href
+                })
+            # Direct media file links
+            elif self._is_direct_media_link(href):
                 media_type = self._get_media_type_from_url(href)
                 media_urls.append({
                     'type': media_type,
@@ -217,16 +221,9 @@ class ContentAnalyzer:
         if url.endswith(('.gif', '.png', '.jpg', '.jpeg')) and ('1x1' in url or 'pixel' in url):
             return False
         
-        # Check for valid extensions
-        media_extensions = [
-            '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
-            '.mp4', '.avi', '.flv', '.wmv', '.mov', '.webm',
-            '.mp3', '.wav', '.ogg', '.flac', '.m4a', '.wma',
-            '.swf'  # Flash files
-        ]
-        
+        # Check for valid extensions using class constant
         url_lower = url.lower()
-        return any(ext in url_lower for ext in media_extensions)
+        return any(ext in url_lower for ext in self.MEDIA_EXTENSIONS)
     
     def _is_direct_media_link(self, url: str) -> bool:
         """Check if URL is a direct media file link.
@@ -240,14 +237,8 @@ class ContentAnalyzer:
         if not url:
             return False
         
-        media_extensions = [
-            '.mp3', '.mp4', '.flv', '.jpg', '.jpeg', '.png', '.gif',
-            '.avi', '.wmv', '.mov', '.wav', '.ogg', '.flac', '.m4a',
-            '.wma', '.swf', '.webm', '.bmp', '.webp'
-        ]
-        
         url_lower = url.lower()
-        return any(url_lower.endswith(ext) for ext in media_extensions)
+        return any(url_lower.endswith(ext) for ext in self.MEDIA_EXTENSIONS)
     
     def _get_media_type_from_url(self, url: str) -> str:
         """Get media type from URL extension.

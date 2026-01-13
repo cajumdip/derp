@@ -28,7 +28,14 @@ class CDXScraper:
         self.rate_limiter = rate_limiter
         self.cdx_url = config.get('wayback', 'cdx', 'url', 
                                   default='https://web.archive.org/cdx/search/cdx')
-        self.match_type = config.get('wayback', 'cdx', 'match_type', default='domain')
+        
+        # Validate and set match_type
+        match_type = config.get('wayback', 'cdx', 'match_type', default='domain')
+        valid_match_types = ['exact', 'prefix', 'host', 'domain']
+        if match_type not in valid_match_types:
+            logger.warning(f"Invalid match_type '{match_type}', using 'domain'")
+            match_type = 'domain'
+        self.match_type = match_type
     
     async def search(self, phrase: str, resume: bool = False) -> int:
         """Search CDX API for archived URLs containing phrase.
