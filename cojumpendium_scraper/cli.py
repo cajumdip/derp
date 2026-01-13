@@ -178,7 +178,9 @@ async def _run_search(config: Config, phrases: list, method: str, resume: bool):
         if method in ['fulltext', 'all']:
             scrapers.append(('Full-text Search', FullTextScraper(config, db, http_client, rate_limiter)))
         if method in ['archive_search', 'all']:
-            scrapers.append(('Archive.org Search', ArchiveSearchScraper(config, db, http_client, rate_limiter)))
+            # Only include Archive.org search if explicitly enabled in config
+            if config.get('wayback', 'methods', 'archive_search', default=False):
+                scrapers.append(('Archive.org Search', ArchiveSearchScraper(config, db, http_client, rate_limiter)))
         
         # Run searches
         with Progress(

@@ -70,9 +70,22 @@ class CalendarScraper:
         
         total_discovered = 0
         
-        # Get date range
-        start_year = int(self.config.get('search', 'date_range', 'start', default='2004'))
-        end_year = int(self.config.get('search', 'date_range', 'end', default='2012'))
+        # Get date range - extract year as integer
+        date_range_start = self.config.get('search', 'date_range', 'start', default=2004)
+        date_range_end = self.config.get('search', 'date_range', 'end', default=2011)
+        
+        # Handle both string and integer values
+        if isinstance(date_range_start, str):
+            # Extract year from date string like "2004-01-01" or "2004"
+            start_year = int(date_range_start.split('-')[0])
+        else:
+            start_year = int(date_range_start)
+        
+        if isinstance(date_range_end, str):
+            # Extract year from date string like "2011-12-31" or "2011"
+            end_year = int(date_range_end.split('-')[0])
+        else:
+            end_year = int(date_range_end)
         
         # Search each site
         for site in sites:
@@ -193,6 +206,12 @@ class CalendarScraper:
                 
                 time_str = str(item[0]).zfill(6)
                 timestamp = f"{date}{time_str}"
+                
+                # Filter out any results after 2011-12-31
+                if int(timestamp[:8]) > 20111231:
+                    logger.debug(f"Skipping capture with timestamp {timestamp} (after 2011)")
+                    continue
+                
                 archive_url = f"https://web.archive.org/web/{timestamp}/{site}"
                 
                 # Save to database

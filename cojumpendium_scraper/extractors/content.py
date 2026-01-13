@@ -134,13 +134,66 @@ class ContentAnalyzer:
                     'url': src
                 })
         
-        # Extract from embed tags
+        # Extract from embed tags (including Flash/SWF)
         for embed in soup.find_all('embed', src=True):
             src = embed['src']
             if self._is_valid_media_url(src):
+                embed_type = 'flash' if src.lower().endswith('.swf') else 'embed'
                 media_urls.append({
-                    'type': 'embed',
+                    'type': embed_type,
                     'url': src
+                })
+        
+        # Extract Flash object tags
+        for obj in soup.find_all('object'):
+            # Look for Flash embeds in object tags
+            for param in obj.find_all('param', {'name': 'movie'}):
+                src = param.get('value', '')
+                if src and self._is_valid_media_url(src):
+                    media_urls.append({
+                        'type': 'flash',
+                        'url': src
+                    })
+        
+        # Extract YouTube embeds
+        for iframe in soup.find_all('iframe', src=True):
+            src = iframe['src']
+            youtube_match = re.search(r'youtube\.com/embed/([a-zA-Z0-9_-]+)', src)
+            if youtube_match:
+                video_id = youtube_match.group(1)
+                media_urls.append({
+                    'type': 'youtube',
+                    'url': f'https://www.youtube.com/watch?v={video_id}',
+                    'embed_url': src
+                })
+        
+        # Extract MySpace music player links
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            if 'myspace.com/music/player' in href.lower():
+                media_urls.append({
+                    'type': 'myspace_music',
+                    'url': href
+                })
+        
+        # Extract Soundcloud embeds
+        for iframe in soup.find_all('iframe', src=True):
+            src = iframe['src']
+            if 'soundcloud.com' in src.lower():
+                media_urls.append({
+                    'type': 'soundcloud',
+                    'url': src
+                })
+        
+        # Extract direct file links from all links
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            if self._is_direct_media_link(href):
+                media_type = self._get_media_type_from_url(href)
+                media_urls.append({
+                    'type': media_type,
+                    'url': href,
+                    'link_text': link.get_text(strip=True)[:100]
                 })
         
         return media_urls
@@ -168,8 +221,52 @@ class ContentAnalyzer:
         media_extensions = [
             '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
             '.mp4', '.avi', '.flv', '.wmv', '.mov', '.webm',
-            '.mp3', '.wav', '.ogg', '.flac', '.m4a', '.wma'
+            '.mp3', '.wav', '.ogg', '.flac', '.m4a', '.wma',
+            '.swf'  # Flash files
         ]
         
         url_lower = url.lower()
         return any(ext in url_lower for ext in media_extensions)
+    
+    def _is_direct_media_link(self, url: str) -> bool:
+        """Check if URL is a direct media file link.
+        
+        Args:
+            url: URL to check
+            
+        Returns:
+            True if direct media link
+        """
+        if not url:
+            return False
+        
+        media_extensions = [
+            '.mp3', '.mp4', '.flv', '.jpg', '.jpeg', '.png', '.gif',
+            '.avi', '.wmv', '.mov', '.wav', '.ogg', '.flac', '.m4a',
+            '.wma', '.swf', '.webm', '.bmp', '.webp'
+        ]
+        
+        url_lower = url.lower()
+        return any(url_lower.endswith(ext) for ext in media_extensions)
+    
+    def _get_media_type_from_url(self, url: str) -> str:
+        """Get media type from URL extension.
+        
+        Args:
+            url: URL to check
+            
+        Returns:
+            Media type string
+        """
+        url_lower = url.lower()
+        
+        if any(url_lower.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
+            return 'image'
+        elif any(url_lower.endswith(ext) for ext in ['.mp4', '.avi', '.flv', '.wmv', '.mov', '.webm']):
+            return 'video'
+        elif any(url_lower.endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.wma']):
+            return 'audio'
+        elif url_lower.endswith('.swf'):
+            return 'flash'
+        else:
+            return 'unknown'
