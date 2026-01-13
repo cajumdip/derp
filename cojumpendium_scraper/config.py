@@ -125,7 +125,10 @@ class Config:
         """Ensure required directories exist."""
         dirs = [
             self.get('general', 'download_dir', default='./downloads'),
+            self.get('storage', 'downloads', default='./downloads'),
+            self.get('storage', 'pages', default='./pages'),
             self.get('export', 'output_dir', default='./exports')
         ]
         for directory in dirs:
-            Path(directory).mkdir(parents=True, exist_ok=True)
+            if directory:
+                Path(directory).mkdir(parents=True, exist_ok=True)

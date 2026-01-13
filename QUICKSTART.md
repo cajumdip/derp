@@ -1,6 +1,10 @@
-# Quick Start Guide
+# Quick Start Guide - Wayback Machine Scraper
 
-This guide will help you get started with the Cojumpendium scraper quickly.
+This guide will help you get started with the Cojumpendium Wayback Machine scraper quickly.
+
+## Important Note
+
+⚠️ **This scraper will take DAYS or WEEKS to complete due to necessary rate limiting.** This is intentional to avoid being blocked by the Internet Archive. Do not try to speed it up.
 
 ## Installation
 
@@ -16,7 +20,7 @@ pip install -r requirements.txt
 python -m cojumpendium_scraper init
 ```
 
-## Basic Usage
+## Basic Workflow
 
 ### 1. Initialize the Scraper
 ```bash
@@ -27,43 +31,69 @@ This creates:
 - `config.yaml` - Configuration file
 - `cojumpendium.db` - SQLite database
 - `downloads/` - Directory for downloaded media
+- `pages/` - Directory for cached HTML pages
 - `exports/` - Directory for exported data
 
 ### 2. Customize Configuration (Optional)
 
 Edit `config.yaml` to customize:
-- Search terms
-- Date ranges
-- Platform settings
-- Download settings
-- Rate limits
+- Search phrases (default: "Cojum Dip", "cojumdip", "bkaraca", "Bora Karaca")
+- Date range (default: 2004-2012)
+- Rate limiting settings (⚠️ DO NOT reduce these!)
+- User agents
 
-### 3. Run the Scraper
+### 3. Search Wayback Machine
 
-#### Scrape all platforms:
+#### Search using all methods for all phrases:
 ```bash
-python -m cojumpendium_scraper scrape
+python -m cojumpendium_scraper search
 ```
 
-#### Scrape specific platforms:
+#### Search specific phrase:
 ```bash
-python -m cojumpendium_scraper scrape --platform wayback
-python -m cojumpendium_scraper scrape --platform myspace --platform youtube
+python -m cojumpendium_scraper search --phrase "Cojum Dip"
+python -m cojumpendium_scraper search --phrase "bkaraca"
 ```
 
-#### Dry run (test without saving):
+#### Search using specific method:
 ```bash
-python -m cojumpendium_scraper scrape --dry-run
+python -m cojumpendium_scraper search --method cdx
+python -m cojumpendium_scraper search --method calendar
+python -m cojumpendium_scraper search --method fulltext
+python -m cojumpendium_scraper search --method archive_search
 ```
 
-### 4. Check Progress
+#### Resume interrupted search:
+```bash
+python -m cojumpendium_scraper search --resume
+```
+
+### 4. Fetch and Analyze Discovered Pages
+
+After searching, fetch the discovered URLs:
+```bash
+python -m cojumpendium_scraper fetch
+```
+
+This will:
+- Download archived HTML pages
+- Analyze content for target phrases
+- Extract media URLs
+- Save everything to the database
+
+### 5. Check Progress
 
 View statistics:
 ```bash
 python -m cojumpendium_scraper stats
 ```
 
-### 5. Export Results
+Check rate limiting status:
+```bash
+python -m cojumpendium_scraper rate-status
+```
+
+### 6. Export Results
 
 Export all formats:
 ```bash
@@ -89,126 +119,191 @@ python -m cojumpendium_scraper export --format html
 #### `init`
 Initialize configuration and database.
 
-#### `scrape`
-Run the scraper to discover lost media.
+#### `search`
+Search Wayback Machine for content.
 
 Options:
-- `-p, --platform NAME` - Scrape specific platform (can be used multiple times)
-- `--dry-run` - Test without saving to database
+- `-p, --phrase TEXT` - Specific phrase to search
+- `-m, --method [cdx|calendar|fulltext|archive_search|all]` - Search method (default: all)
+- `--resume` - Resume from previous progress
+
+#### `fetch`
+Fetch and analyze discovered pages.
+
+Options:
+- `-l, --limit INTEGER` - Maximum URLs to fetch (default: 100)
 
 #### `stats`
 Show database statistics including:
-- URLs by status (pending, completed, error)
-- Media files by type (image, video, audio)
-- Total storage used
-- URLs by platform
+- Discovered URLs by status
+- Discovered URLs by search phrase
+- Media by type
+- Search progress
+- Recent request statistics
+
+#### `rate-status`
+Show rate limiting status and recent errors.
 
 #### `export`
 Export scraped data.
 
 Options:
-- `-f, --format FORMAT` - Export format: json, csv, html, or all (default: all)
+- `-f, --format [json|csv|html|all]` - Export format (default: all)
 
-## Tips
+## Search Methods Explained
 
-1. **Start with a dry run** to see what will be scraped:
+### CDX Server API
+Fast URL-based searches with wildcard matching. Good for finding known sites.
+
+### Calendar Captures API
+Granular day-by-day snapshot discovery for specific known URLs.
+
+### Full-text Search
+HTML parsing of Wayback's search results. Slower but finds content in any archived page.
+
+### Archive.org Search
+Searches uploaded audio/video/documents in Archive.org's collection.
+
+## Rate Limiting - CRITICAL
+
+The scraper includes aggressive rate limiting:
+
+- **5-15 second delays** between requests
+- **Random jittering** to avoid pattern detection
+- **Exponential backoff** on errors (30s → 10 minutes)
+- **100 requests/hour** maximum
+- **Cooldown periods** (3 minutes every 50 requests)
+
+**Do NOT modify these settings** unless you want to be blocked!
+
+## Expected Timeline
+
+For reference, here's what to expect:
+
+- **Single search method, single phrase**: 2-4 days
+- **All methods, single phrase**: 1-2 weeks
+- **All methods, all phrases**: 3-4 weeks
+- **Full search + fetch**: 1-2 months
+
+**This is normal and necessary.** Use the `--resume` flag if interrupted.
+
+## Tips for Success
+
+1. **Be Patient** - Let it run for days/weeks
+   
+2. **Use screen/tmux** for long sessions:
    ```bash
-   python -m cojumpendium_scraper scrape --dry-run --platform wayback
+   screen -S wayback
+   python -m cojumpendium_scraper search
+   # Ctrl+A, D to detach
+   screen -r wayback  # to reattach
    ```
 
-2. **Use verbose mode** for debugging:
+3. **Monitor Progress** regularly:
    ```bash
-   python -m cojumpendium_scraper -v scrape
+   python -m cojumpendium_scraper stats
    ```
 
-3. **Check logs** for detailed information:
+4. **Resume if Interrupted**:
+   ```bash
+   python -m cojumpendium_scraper search --resume
+   ```
+
+5. **Check Logs** for details:
    ```bash
    tail -f scraper.log
    ```
 
-4. **Export regularly** to save your progress:
+6. **Export Periodically** to save progress:
    ```bash
    python -m cojumpendium_scraper export
    ```
 
-## Platform Priority
-
-For finding Cojum Dip lost media, prioritize these platforms:
-
-1. **Wayback Machine** - Primary source for archived content
-2. **MySpace** - Old music profiles and players
-3. **YouTube** - Video content
-4. **Last.fm** - Scrobbles and artist info
-5. **Soundcloud** - Audio tracks
-6. **Flickr** - Photo archives
-
-## Search Terms Priority
-
-The configuration includes search terms with these priorities:
-
-**HIGH PRIORITY:**
-- "Turk Off"
-- "2010 Remix"
-
-**MEDIUM PRIORITY:**
-- "Cojum Dip"
-- "Bora Karaca"
-- Band member personas
-
-**LOW PRIORITY:**
-- Venue combinations
-- Related searches
-
 ## Troubleshooting
 
-### No results found
-- Check your internet connection
-- Verify the date range in config.yaml
-- Try different search terms
-- Some archived content may no longer be available
+### "Rate limit exceeded" or 429/403 errors
+- **This is normal!** The scraper will automatically backoff
+- Check `rate-status` to see current state
+- DO NOT reduce rate limiting settings
 
-### Rate limit errors
-- Increase `request_delay` in config.yaml
-- Reduce `max_concurrent` in config.yaml
+### Search taking too long
+- **This is expected and intentional**
+- Use `--resume` to continue interrupted searches
+- Monitor progress with `stats` command
+
+### "Database not found"
+```bash
+python -m cojumpendium_scraper init
+```
 
 ### Import errors
 ```bash
 pip install -r requirements.txt --upgrade
 ```
 
-### Database locked
-```bash
-# Close any other processes using the database
-# Or use a different database file in config.yaml
-```
+### Out of disk space
+- Check the `pages/` directory size
+- Consider clearing old cached HTML files
+- Exported data is kept in `exports/`
 
-## Example Workflow
+## Example Complete Workflow
 
 ```bash
 # 1. Setup
 python -m cojumpendium_scraper init
 
-# 2. Edit config.yaml to customize settings
+# 2. Optional: Edit config.yaml to customize
 
-# 3. Test with dry run
-python -m cojumpendium_scraper -v scrape --dry-run --platform wayback
+# 3. Start comprehensive search (will take weeks!)
+python -m cojumpendium_scraper search
 
-# 4. Run actual scrape
-python -m cojumpendium_scraper scrape --platform wayback
+# In another terminal, monitor progress:
+watch -n 300 'python -m cojumpendium_scraper stats'
 
-# 5. Check progress
+# 4. After search completes, fetch pages
+python -m cojumpendium_scraper fetch
+
+# 5. Check what was found
 python -m cojumpendium_scraper stats
 
-# 6. Export results
+# 6. Export everything
 python -m cojumpendium_scraper export
 
 # 7. Review HTML report
 open exports/report_*.html
 ```
 
+## Recommended Approach for Beginners
+
+Start with a single phrase and method:
+
+```bash
+# Initialize
+python -m cojumpendium_scraper init
+
+# Test with one phrase and method (takes 2-4 days)
+python -m cojumpendium_scraper search --phrase "cojumdip" --method cdx
+
+# Monitor progress daily
+python -m cojumpendium_scraper stats
+
+# Once complete, fetch the discovered URLs
+python -m cojumpendium_scraper fetch
+
+# Export results
+python -m cojumpendium_scraper export
+
+# If results look good, scale up to all phrases and methods
+python -m cojumpendium_scraper search  # all phrases, all methods
+```
+
 ## Next Steps
 
 - Review the main README.md for detailed documentation
-- Check the configuration options in config.yaml
-- Explore the scraped data in the exports directory
+- Understand the rate limiting configuration
+- Plan for long-term scraping (weeks/months)
 - Share your findings with the Cojumpendium research group!
+
+## Remember
+
+🐢 **Slow and steady wins the race.** This scraper is designed for comprehensive, patient archival research, not quick results. Respect the Internet Archive and you'll find amazing lost content!

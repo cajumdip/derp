@@ -1,10 +1,13 @@
-# Cojumpendium Scraper Configuration
+# Cojumpendium Scraper Configuration - Wayback Machine Focus
 # Copy this file to config.yaml and customize
 
 # General settings
 general:
   # Directory to store downloaded media
   download_dir: "./downloads"
+  
+  # Directory to store cached HTML pages
+  pages_dir: "./pages"
   
   # Database file location
   database: "./cojumpendium.db"
@@ -15,134 +18,131 @@ general:
   # Log file location
   log_file: "./scraper.log"
 
-# HTTP settings
-http:
-  # Maximum concurrent requests
-  max_concurrent: 10
-  
-  # Delay between requests (seconds)
-  request_delay: 1.0
-  
-  # Request timeout (seconds)
-  timeout: 30
-  
-  # Maximum retries for failed requests
-  max_retries: 3
-  
-  # User agent string
-  user_agent: "Cojumpendium-Scraper/1.0 (Lost Media Archival Project; +https://github.com/cajumdip/derp)"
-
-# Archive.org / Wayback Machine settings
-wayback:
-  # Rate limit: requests per minute
-  rate_limit: 30
-  
-  # Enable CDX API usage
-  use_cdx: true
-  
-  # CDX server URL
-  cdx_url: "https://web.archive.org/cdx/search/cdx"
-
-# Search terms and targets
+# Search configuration - REQUIRED phrases for Cojum Dip
 search:
-  # Primary search terms
-  terms:
+  phrases:
     - "Cojum Dip"
     - "cojumdip"
-    - "cojum-dip"
+    - "bkaraca"
     - "Bora Karaca"
-    - "Turk Off"
-    - "2010 Remix"
-    - "Bodur the Clumsy"
-    - "Udabn the Feared"
-    - "Captain No the Love Machine"
-    - "Mumutits the Sour"
-    - "Oktabis the Keeper"
-    - "Anthropomorphic Bible Assault"
-    - "Greatest Demo CD in the Universe"
   
-  # Venue combinations
-  venues:
-    - "Blind Pig"
-    - "Duderstadt Center"
-  
-  # Related searches
-  related:
-    - "Tally Hall Bora"
-    - "Ann Arbor experimental metal"
-  
-  # Date range for searches
+  # Date range for Wayback searches (2004-2012 era)
   date_range:
-    start: "2004-01-01"
-    end: "2011-12-31"
+    start: "2004"
+    end: "2012"
 
-# Platform-specific settings
-platforms:
-  myspace:
-    enabled: true
-    urls:
-      - "myspace.com/cojumdip"
+# Rate limiting configuration (CRITICAL for avoiding blocks)
+rate_limiting:
+  # Minimum delay between requests (seconds)
+  min_delay: 5
   
-  soundcloud:
-    enabled: true
-    urls:
-      - "soundcloud.com/cojumdip"
+  # Maximum delay between requests (seconds)
+  max_delay: 15
   
-  facebook:
-    enabled: true
-    urls:
-      - "facebook.com/cojumdip"
+  # Random variance to add (jitter in seconds)
+  jitter: 3
   
-  twitter:
-    enabled: true
-    search_handles:
-      - "cojumdip"
-      - "borakaraca"
+  # Initial backoff on rate limit error (seconds)
+  backoff_base: 30
   
-  youtube:
-    enabled: true
-    channels: []
+  # Maximum backoff time (10 minutes)
+  backoff_max: 600
   
-  lastfm:
-    enabled: true
-    artist: "Cojum Dip"
+  # Maximum requests per hour
+  requests_per_hour: 100
   
-  flickr:
-    enabled: true
-    tags:
-      - "cojumdip"
-      - "cojum dip"
+  # Pause after this many requests
+  cooldown_every: 50
   
-  purevolume:
-    enabled: true
-    urls:
-      - "purevolume.com/cojumdip"
+  # Cooldown pause duration (seconds, 3 minutes)
+  cooldown_duration: 180
+
+# User agent rotation
+user_agents:
+  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
+  - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+# Storage settings
+storage:
+  database: "./cojumpendium.db"
+  downloads: "./downloads"
+  pages: "./pages"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  file: "./scraper.log"
+
+# Wayback search methods
+wayback:
+  # Enable/disable specific search methods
+  methods:
+    cdx: true           # CDX Server API
+    calendar: true      # Calendar Captures API
+    fulltext: true      # Full-text search results scraping
+    archive_search: true # Archive.org general search
   
-  forums:
-    enabled: true
-    # Add forum URLs to search
-    urls: []
+  # CDX Server configuration
+  cdx:
+    url: "https://web.archive.org/cdx/search/cdx"
+    match_type: "domain"
+  
+  # Calendar API configuration
+  calendar:
+    url: "https://web.archive.org/__wb/calendarcaptures/2"
+    # Known sites to check for calendar captures
+    sites:
+      - "http://myspace.com/cojumdip"
+      - "http://purevolume.com/cojumdip"
+      - "http://soundcloud.com/cojumdip"
+  
+  # Full-text search configuration
+  fulltext:
+    base_url: "https://web.archive.org/web/*/"
+    max_pages: 50  # Maximum result pages to scrape per phrase
+  
+  # Archive.org search configuration
+  archive_search:
+    url: "https://archive.org/advancedsearch.php"
+    fields: ["identifier", "title", "description", "creator", "date"]
+    rows: 100  # Results per page
+
+# Content analysis settings
+content_analysis:
+  # Extract content from pages
+  enabled: true
+  
+  # Search for phrases in page content
+  search_phrases: true
+  
+  # Extract media from pages
+  extract_media: true
 
 # Media extraction settings
 media:
   # File types to download
   images:
     enabled: true
-    extensions: [".jpg", ".jpeg", ".png", ".gif", ".bmp"]
+    extensions: [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
     max_size_mb: 50
   
   videos:
     enabled: true
-    extensions: [".mp4", ".avi", ".flv", ".wmv", ".mov"]
+    extensions: [".mp4", ".avi", ".flv", ".wmv", ".mov", ".webm"]
     max_size_mb: 500
   
   audio:
     enabled: true
-    extensions: [".mp3", ".wav", ".ogg", ".flac", ".m4a"]
+    extensions: [".mp3", ".wav", ".ogg", ".flac", ".m4a", ".wma"]
     max_size_mb: 100
 
 # Export settings
 export:
+  # Output directory for exports
+  output_dir: "./exports"
+  
   # Generate JSON export
   json: true
   
@@ -151,6 +151,3 @@ export:
   
   # Generate HTML report
   html: true
-  
-  # Output directory for exports
-  output_dir: "./exports"

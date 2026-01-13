@@ -2,11 +2,11 @@
 
 **D**iscovering **E**lusive **R**ecordings **P**roject
 
-A comprehensive archival tool for the Cojumpendium research group to find lost media from the band Cojum Dip (2004-2011).
+A comprehensive Wayback Machine scraper for the Cojumpendium research group to find lost media from the band Cojum Dip (2004-2011).
 
 ## About
 
-This powerful scraping tool helps locate archived photos, videos, audio, and mentions of Cojum Dip across old social media and music platforms. It searches archived versions of MySpace, Soundcloud, Facebook, Twitter, YouTube, Last.fm, Flickr, PureVolume, and various forums through the Wayback Machine.
+This specialized scraping tool is **100% focused on searching the Internet Archive's Wayback Machine** for archived photos, videos, audio, and mentions of Cojum Dip. It uses multiple search methods to ensure comprehensive coverage of all archived content.
 
 ### Background
 
@@ -14,27 +14,34 @@ Cojum Dip is an experimental band founded by Bora Karaca around 2004 at the Univ
 
 **Priority target**: Finding "Turk Off" / "2010 Remix" release
 
+## Why Wayback Machine Only?
+
+After analysis, we determined that the Wayback Machine is the single most comprehensive source for historical content. Rather than spreading effort across multiple platforms (MySpace, Facebook, Twitter, etc.), this scraper focuses all resources on thoroughly searching the Internet Archive using:
+
+1. **CDX Server API** - Fast URL-based searches with wildcard matching
+2. **Calendar Captures API** - Granular day-by-day snapshot discovery
+3. **Full-text Search** - HTML parsing of Wayback search results
+4. **Archive.org Search** - Discovery of uploaded audio/video/documents
+
 ## Features
 
 ### Core Capabilities
-- **Wayback Machine Integration** - Comprehensive archive searches using CDX Server API
-- **Multi-Platform Scraping** - Support for MySpace, Soundcloud, Facebook, Twitter, YouTube, Last.fm, Flickr, and more
-- **Media Extraction** - Automatic detection and download of images, videos, and audio files
-- **Smart Deduplication** - File hashing to avoid duplicate downloads
+- **Multiple Wayback Search Methods** - Comprehensive coverage using 4 different APIs
+- **Aggressive Rate Limiting** - Built-in protection against blocks with exponential backoff
+- **Smart Session Management** - Resume interrupted searches from where you left off
+- **Content Analysis** - Automatic phrase detection in archived pages
+- **Media Extraction** - Automatic detection of images, videos, and audio
+- **Request Jittering** - Random delays to avoid detection
+- **User-Agent Rotation** - Realistic browser identification
 - **SQLite Database** - Track all discovered URLs and their status
 - **Export Options** - JSON, CSV, and HTML report generation
-- **Async Operations** - Fast, concurrent HTTP requests with rate limiting
-- **Progress Tracking** - Rich terminal UI with progress bars and status updates
 
 ### Search Targets
-The scraper searches for:
-- Band names: "Cojum Dip", "cojumdip", "cojum-dip"
-- Key members: "Bora Karaca"
-- **HIGH PRIORITY**: "Turk Off", "2010 Remix"
-- Band personas: "Bodur the Clumsy", "Udabn the Feared", "Captain No the Love Machine", "Mumutits the Sour", "Oktabis the Keeper"
-- Venue combinations: "Blind Pig Cojum", "Duderstadt Center Cojum"
-- Related searches: "Tally Hall Bora", "Ann Arbor experimental metal"
-- Album/EP names: "Anthropomorphic Bible Assault", "Greatest Demo CD in the Universe"
+The scraper searches for these REQUIRED phrases:
+- "Cojum Dip"
+- "cojumdip"
+- "bkaraca"
+- "Bora Karaca"
 
 ## Installation
 
@@ -63,109 +70,131 @@ python -m cojumpendium_scraper init
 This will:
 - Create `config.yaml` from the example template
 - Initialize the SQLite database
-- Create required directories (downloads, exports)
+- Create required directories (downloads, pages, exports)
 
 ## Configuration
 
 Edit `config.yaml` to customize the scraper behavior:
 
 ```yaml
-# General settings
-general:
-  download_dir: "./downloads"
-  database: "./cojumpendium.db"
-  log_level: "INFO"
-
-# HTTP settings
-http:
-  max_concurrent: 10
-  request_delay: 1.0
-  timeout: 30
-
-# Search settings
+# Search configuration - REQUIRED phrases
 search:
-  terms:
+  phrases:
     - "Cojum Dip"
+    - "cojumdip"
+    - "bkaraca"
     - "Bora Karaca"
-    - "Turk Off"
-    - "2010 Remix"
   date_range:
-    start: "2004-01-01"
-    end: "2011-12-31"
+    start: "2004"
+    end: "2012"
 
-# Platform-specific settings
-platforms:
-  myspace:
-    enabled: true
-  soundcloud:
-    enabled: true
-  # ... more platforms
+# Rate limiting (CRITICAL for avoiding blocks)
+rate_limiting:
+  min_delay: 5          # Minimum seconds between requests
+  max_delay: 15         # Maximum delay
+  jitter: 3             # Random variance
+  backoff_base: 30      # Initial backoff on error
+  backoff_max: 600      # Max backoff (10 minutes)
+  requests_per_hour: 100
+  cooldown_every: 50    # Pause after this many requests
+  cooldown_duration: 180 # Pause for 3 minutes
 ```
 
 See `config.example.yaml` for all available options.
 
 ## Usage
 
-### Basic Scraping
+### Basic Workflow
 
-Run the scraper to search all enabled platforms:
-
+1. **Initialize** (first time only)
 ```bash
-python -m cojumpendium_scraper scrape
+python -m cojumpendium_scraper init
 ```
 
-### Platform-Specific Scraping
-
-Scrape specific platforms only:
-
+2. **Search** for archived content
 ```bash
-python -m cojumpendium_scraper scrape --platform wayback --platform myspace
+# Search using all methods for all phrases
+python -m cojumpendium_scraper search
+
+# Search specific phrase
+python -m cojumpendium_scraper search --phrase "Cojum Dip"
+
+# Use specific search method
+python -m cojumpendium_scraper search --method cdx
+python -m cojumpendium_scraper search --method calendar
+python -m cojumpendium_scraper search --method fulltext
+
+# Resume interrupted search
+python -m cojumpendium_scraper search --resume
 ```
 
-### Dry Run Mode
-
-Test without saving to database:
-
+3. **Fetch and analyze** discovered pages
 ```bash
-python -m cojumpendium_scraper scrape --dry-run
+python -m cojumpendium_scraper fetch
 ```
 
-### View Statistics
-
-Check scraping progress and statistics:
-
+4. **Check progress**
 ```bash
 python -m cojumpendium_scraper stats
+python -m cojumpendium_scraper rate-status
 ```
 
-### Export Data
-
-Export discovered content:
-
+5. **Export findings**
 ```bash
-# Export all formats
-python -m cojumpendium_scraper export
-
-# Export specific format
 python -m cojumpendium_scraper export --format json
 python -m cojumpendium_scraper export --format csv
 python -m cojumpendium_scraper export --format html
 ```
 
-### Verbose Mode
+### Available Commands
 
-Enable detailed logging:
-
+#### `init`
+Initialize configuration and database
 ```bash
-python -m cojumpendium_scraper --verbose scrape
+python -m cojumpendium_scraper init
 ```
 
-### Custom Configuration
-
-Use a custom config file:
-
+#### `search`
+Search Wayback Machine for content
 ```bash
-python -m cojumpendium_scraper --config /path/to/config.yaml scrape
+python -m cojumpendium_scraper search [OPTIONS]
+
+Options:
+  --phrase, -p TEXT      Specific phrase to search
+  --method, -m [cdx|calendar|fulltext|archive_search|all]
+                        Search method (default: all)
+  --resume              Resume from previous progress
+```
+
+#### `fetch`
+Fetch and analyze discovered pages
+```bash
+python -m cojumpendium_scraper fetch [OPTIONS]
+
+Options:
+  --limit, -l INTEGER   Maximum URLs to fetch (default: 100)
+```
+
+#### `stats`
+Show database statistics
+```bash
+python -m cojumpendium_scraper stats
+```
+
+#### `rate-status`
+Show rate limiting status
+```bash
+python -m cojumpendium_scraper rate-status
+```
+
+#### `export`
+Export scraped data
+```bash
+python -m cojumpendium_scraper export [OPTIONS]
+
+Options:
+  --format, -f [json|csv|html|all]
+                        Export format (default: all)
 ```
 
 ## Project Structure
@@ -177,25 +206,23 @@ cojumpendium_scraper/
 ├── cli.py                # Command-line interface
 ├── config.py             # Configuration management
 ├── database.py           # SQLite database operations
-├── scrapers/             # Platform-specific scrapers
-│   ├── base.py           # Base scraper class
-│   ├── wayback.py        # Wayback Machine scraper
-│   ├── myspace.py        # MySpace scraper
-│   ├── soundcloud.py     # Soundcloud scraper
-│   ├── facebook.py       # Facebook scraper
-│   ├── twitter.py        # Twitter scraper
-│   ├── youtube.py        # YouTube scraper
-│   ├── lastfm.py         # Last.fm scraper
-│   ├── flickr.py         # Flickr scraper
-│   └── forums.py         # Forums scraper
+├── wayback/              # Wayback Machine scrapers
+│   ├── cdx.py            # CDX Server API
+│   ├── calendar.py       # Calendar Captures API
+│   ├── fulltext.py       # Full-text search scraping
+│   ├── archive_search.py # Archive.org search API
+│   └── fetcher.py        # Page fetching with analysis
 ├── extractors/           # Media extraction
+│   ├── content.py        # Content/phrase analyzer
 │   ├── media.py          # Base media extractor
 │   ├── images.py         # Image extractor
 │   ├── video.py          # Video extractor
 │   └── audio.py          # Audio extractor
 ├── utils/                # Utility modules
-│   ├── http.py           # HTTP client with rate limiting
-│   ├── hashing.py        # File hashing for deduplication
+│   ├── http.py           # HTTP client
+│   ├── rate_limiter.py   # Advanced rate limiting
+│   ├── user_agents.py    # UA rotation
+│   ├── hashing.py        # File hashing
 │   └── logging.py        # Logging configuration
 └── exporters/            # Data export
     ├── json_export.py    # JSON exporter
@@ -205,77 +232,64 @@ cojumpendium_scraper/
 
 ## Database Schema
 
-### URLs Table
-Tracks all discovered URLs:
-- `id` - Primary key
-- `url` - The URL
-- `source_platform` - Platform where found
-- `archive_date` - Archive date if applicable
-- `content_type` - Type of content
-- `status` - Processing status (pending/processing/completed/error)
-- `discovered_at` - When discovered
-- `last_checked` - Last check timestamp
-- `metadata` - Additional metadata (JSON)
+### `discovered_urls`
+Tracks URLs discovered from Wayback searches
+- Archive URL and original URL
+- Archive timestamp
+- Search phrase that found it
+- Status (pending/fetched/analyzed/error)
+- Content hash
 
-### Media Files Table
-Tracks downloaded media:
-- `id` - Primary key
-- `url_id` - Foreign key to URLs
-- `file_path` - Local file path
-- `file_type` - Type (image/video/audio)
-- `file_hash` - Hash for deduplication
-- `file_size` - Size in bytes
-- `original_url` - Original URL
-- `downloaded_at` - Download timestamp
-- `reviewed` - Review status
-- `notes` - Review notes
+### `media`
+Media found on archived pages
+- URL to media file
+- Media type (image/video/audio)
+- Local download path
+- File hash
 
-## Platform-Specific Notes
+### `search_progress`
+Tracks progress of searches for resumption
+- Search phrase and method
+- Last offset/timestamp processed
+- Completion status
 
-### Wayback Machine
-- Uses CDX Server API for efficient archive searches
-- Respects rate limits (default: 30 requests/minute)
-- Searches archived snapshots from 2004-2011
+### `request_log`
+Logs all HTTP requests for rate limiting
+- Request URL
+- Status code
+- Success/failure
+- Timestamp
 
-### MySpace
-- Focuses on archived profile pages
-- Extracts old music player links
-- Looks for photos and comments
+## Rate Limiting - CRITICAL
 
-### Soundcloud
-- Searches for tracks and reposts
-- Extracts embedded audio players
+The Wayback Machine **WILL block aggressive scrapers**. This tool includes comprehensive rate limiting:
 
-### YouTube
-- Extracts video IDs from search results
-- Can be used with yt-dlp for downloads
+- **5-15 second delays** between requests (with jittering)
+- **Exponential backoff** on 403/429/503 errors (starts at 30s, doubles up to 10 minutes)
+- **Hourly limits** (default: 100 requests/hour)
+- **Cooldown periods** (pause for 3 minutes after every 50 requests)
+- **Request logging** for monitoring
+- **Session persistence** - resume where you left off
 
-### Last.fm
-- Searches artist pages for scrobbles
-- Looks for photos and event listings
+### Expected Runtime
 
-### Flickr
-- Searches by tags and venue names
-- Extracts photo URLs
+**This scraper will take days or weeks to complete**. This is intentional and necessary to avoid being blocked. The comprehensive search with rate limiting means:
+
+- ~100-300 requests per day
+- Multiple days per search method
+- Weeks for complete coverage of all phrases and methods
+
+**Do not try to speed this up**. You will be blocked and lose all progress.
 
 ## Tips for Effective Scraping
 
-1. **Start with Wayback Machine** - This is the primary source for archived content
-2. **Use specific search terms** - The more specific, the better results
-3. **Monitor rate limits** - Adjust `request_delay` in config if needed
-4. **Review statistics regularly** - Use `stats` command to track progress
-5. **Export periodically** - Save your progress with `export` command
-6. **Check logs** - Review `scraper.log` for detailed information
-
-## Contributing
-
-This is a community effort! Cojumpendium members can contribute by:
-
-1. **Adding search terms** - Edit `config.yaml` to add more search terms
-2. **Improving scrapers** - Enhance platform-specific scrapers
-3. **Adding platforms** - Create new scrapers for additional platforms
-4. **Reporting findings** - Share discovered media with the group
-5. **Testing** - Run scrapes and report issues
+1. **Be Patient** - Let the scraper run for days/weeks
+2. **Monitor Progress** - Use `stats` and `rate-status` commands regularly
+3. **Resume Capability** - Use `--resume` if interrupted
+4. **Run in Background** - Use `screen` or `tmux` for long-running sessions
+5. **Export Periodically** - Save your progress with `export` command
+6. **Check Logs** - Review `scraper.log` for detailed information
+7. **Respect Rate Limits** - Don't modify rate limiting settings unless necessary
 
 ## Troubleshooting
 
@@ -284,24 +298,26 @@ This is a community effort! Cojumpendium members can contribute by:
 **"Database not found"**
 - Run `python -m cojumpendium_scraper init` to initialize
 
-**"Rate limit exceeded"**
-- Increase `request_delay` in config.yaml
-- Reduce `max_concurrent` in config.yaml
+**"Rate limit exceeded" or 429/403 errors**
+- This is normal - the scraper will automatically backoff
+- Check logs to see current backoff time
+- Do NOT reduce rate limiting settings
 
-**"Failed to download media"**
-- Check internet connection
-- Some archived URLs may be unavailable
-- Check logs for specific errors
+**"Search taking too long"**
+- This is expected and intentional
+- Use `--resume` to continue interrupted searches
+- Monitor progress with `stats` command
 
-**"Import errors"**
+**Import errors**
 - Ensure all dependencies are installed: `pip install -r requirements.txt`
 
 ## Legal and Ethical Considerations
 
-- This tool respects robots.txt and rate limits
+- This tool respects rate limits and implements aggressive throttling
 - Archives content for historical preservation purposes
 - Has explicit permission from the band founder (Bora Karaca)
 - Complies with Archive.org's terms of service
+- Uses reasonable User-Agent strings identifying the project
 
 ## License
 
@@ -319,4 +335,4 @@ For questions or to contribute, please open an issue on GitHub.
 
 ---
 
-**Remember**: The goal is to preserve lost media for historical and artistic purposes. Handle all content with respect for the artists and the communities involved.
+**Remember**: The goal is to preserve lost media for historical and artistic purposes. Be patient, respect rate limits, and handle all content with respect for the artists and the communities involved.
