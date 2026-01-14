@@ -34,7 +34,7 @@ class RateLimiter:
     def on_success(self) -> None:
         """Called after successful request.
         
-        No-op for basic rate limiter. Override in subclasses for adaptive behavior.
+        No-op for basic rate limiter. Advanced rate limiters may implement this for adaptive behavior.
         """
         pass
     
@@ -44,7 +44,7 @@ class RateLimiter:
         Args:
             status_code: HTTP status code of the error
             
-        No-op for basic rate limiter. Override in subclasses for adaptive behavior.
+        No-op for basic rate limiter. Advanced rate limiters may implement this for adaptive behavior.
         """
         pass
 
