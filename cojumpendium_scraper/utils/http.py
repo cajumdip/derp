@@ -30,6 +30,23 @@ class RateLimiter:
             if elapsed < self.min_interval:
                 await asyncio.sleep(self.min_interval - elapsed)
         self.last_request = datetime.now()
+    
+    def on_success(self) -> None:
+        """Called after successful request.
+        
+        No-op for basic rate limiter. Advanced rate limiters may implement this for adaptive behavior.
+        """
+        pass
+    
+    def on_error(self, status_code: int) -> None:
+        """Called after failed request.
+        
+        Args:
+            status_code: HTTP status code of the error
+            
+        No-op for basic rate limiter. Advanced rate limiters may implement this for adaptive behavior.
+        """
+        pass
 
 
 class HTTPClient:
